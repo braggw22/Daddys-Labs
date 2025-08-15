@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Daddy Labs — Advanced Playground</title>
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --bg2: #101626;
+      --fg: #e6edf3;
+      --muted: #94a3b8;
+      --brand: #ff006e; /* Daddy Labs hot pink */
+      --brand2: #ffd60a; /* Accent gold */
+      --glass: rgba(255,255,255,0.06);
+      --glass-stroke: rgba(255,255,255,0.08);
+      --card: rgba(17,24,39,0.55);
+      --shadow: 0 10px 30px rgba(0,0,0,.45);
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body { margin:0; font-family: ui-sans-serif, system-ui, Segoe UI, Roboto, Helvetica, Arial, Apple Color Emoji, Segoe UI Emoji; color: var(--fg);
+      background: radial-gradient(1200px 800px at 80% -20%, rgba(255, 0, 110,.25), transparent 50%),
+                  radial-gradient(900px 600px at 10% 10%, rgba(255, 214, 10,.15), transparent 55%),
+                  linear-gradient(180deg, var(--bg), var(--bg2)); }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    header { display:flex; gap:16px; align-items:center; justify-content:space-between; margin-bottom: 18px; }
+    .title { display:flex; gap:14px; align-items:center; }
+    .logo { width:42px; height:42px; border-radius:12px; background: conic-gradient(from 0.5turn, var(--brand), var(--brand2), var(--brand)); box-shadow: 0 6px 18px rgba(255,0,110,.35), inset 0 0 22px rgba(255,214,10,.5); }
+    h1 { margin:0; font-size: clamp(20px, 2.4vw, 32px); letter-spacing:.2px; }
+    .controls { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .btn, .toggle { appearance:none; border:1px solid var(--glass-stroke); background: var(--glass); color: var(--fg); padding: 10px 14px; border-radius: 12px; cursor:pointer; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: var(--shadow); font-weight:600; }
+    .btn:hover { background: rgba(255,255,255,0.1); }
+    .toggle { display:flex; align-items:center; gap:10px; }
+    .chip { font: 600 12px/1 ui-sans-serif, system-ui; color: var(--muted); letter-spacing:.4px; text-transform: uppercase; }
+    .grid { display:grid; grid-template-columns: 1.2fr 1fr; gap: 22px; align-items:start; }
+    @media (max-width: 1024px) { .grid { grid-template-columns: 1fr; } }
+    .card { background: var(--card); border: 1px solid var(--glass-stroke); border-radius: 16px; overflow:hidden; box-shadow: var(--shadow); }
+    .card h2 { margin: 0; padding: 14px 16px; font-size: 16px; border-bottom: 1px solid var(--glass-stroke); background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,0)); display:flex; align-items:center; gap:10px; }
+    .card .body { padding: 14px; }
+    .hint { color: var(--muted); font-size: 12px; }
+    .panel { display:flex; flex-wrap:wrap; gap: 10px; margin: 10px 0 4px; }
+    .panel label { display:flex; align-items:center; gap: 8px; font-size: 12px; color: var(--muted); }
+    input[type=range] { width: 180px; }
+    #stage { width: 100%; height: 56vh; min-height: 360px; position: relative; }
+    #three { width: 100%; height: 100%; display:block; }
+    .overlay-stats { position:absolute; left: 12px; bottom: 10px; display:flex; flex-direction:column; gap:6px; background: rgba(0,0,0,.35); padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,.08); font-size: 12px; }
+    #vizCanvas { width:100%; height: 240px; display:block; background: rgba(0,0,0,.35); border-radius: 12px; }
+    #fractalCanvas { width:100%; height: 360px; display:block; background: #05070d; border-radius: 12px; }
+    footer { margin: 26px 0 10px; display:flex; justify-content:space-between; gap:12px; align-items:center; color: var(--muted); font-size: 12px; }
+    a { color: #a5b4fc; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .kbd { padding: 2px 6px; border: 1px solid var(--glass-stroke); border-bottom-width:2px; border-radius:8px; background: rgba(255,255,255,.06); font-weight:700; font-size: 11px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="title">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <h1>Daddy Labs</h1>
+          <div class="chip">A single-file playground with 3D, audio, and fractals</div>
+        </div>
+      </div>
+      <div class="controls">
+        <button id="themeBtn" class="btn" aria-pressed="false" title="Toggle theme">🌗 Theme</button>
+        <button id="perfBtn" class="btn" aria-pressed="false" title="Toggle performance mode">🚀 Performance</button>
+        <button id="aboutBtn" class="btn" title="Show keyboard shortcuts">❓ About</button>
+      </div>
+    </header>
+
+    <div class="grid">
+      <section class="card" aria-label="3D Neon Playground">
+        <h2>3D Neon Playground <span class="hint">(drag to orbit • scroll to zoom)</span></h2>
+        <div id="stage">
+          <canvas id="three" aria-label="3D scene"></canvas>
+          <div class="overlay-stats" id="stats"></div>
+        </div>
+        <div class="body">
+          <div class="panel">
+            <label><input id="starsToggle" type="checkbox" checked /> Starfield</label>
+            <label><input id="bloomToggle" type="checkbox" checked /> Bloom</label>
+            <label>Speed <input id="speedRange" type="range" min="0" max="2" step="0.01" value="0.8" /></label>
+            <label>Bloom <input id="bloomRange" type="range" min="0" max="2.5" step="0.05" value="1.1" /></label>
+          </div>
+          <div class="hint">Tip: press <span class="kbd">F</span> to go fullscreen, <span class="kbd">P</span> to pause.</div>
+        </div>
+      </section>
+
+      <section class="card" aria-label="Audio Visualizer">
+        <h2>Audio Visualizer <span class="hint">(WebAudio FFT + Canvas)</span></h2>
+        <div class="body">
+          <canvas id="vizCanvas"></canvas>
+          <div class="panel">
+            <button class="btn" id="micBtn">🎤 Use Microphone</button>
+            <button class="btn" id="stopAudioBtn" disabled>⏹ Stop</button>
+            <label class="btn" for="fileInput">📁 Load Audio<input id="fileInput" type="file" accept="audio/*" hidden></label>
+            <label>Bars <input id="barsRange" type="range" min="16" max="256" step="1" value="96"/></label>
+          </div>
+          <div class="hint">Works best over HTTPS (browser permissions). If mic is blocked, use a file instead.</div>
+        </div>
+      </section>
+
+      <section class="card" style="grid-column: 1 / -1" aria-label="Fractal Explorer">
+        <h2>Mandelbrot Explorer <span class="hint">(Web Worker • progressive tiles)</span></h2>
+        <div class="body">
+          <canvas id="fractalCanvas"></canvas>
+          <div class="panel">
+            <button class="btn" id="resetFractal">🔄 Reset</button>
+            <button class="btn" id="zoomIn">➕ Zoom In</button>
+            <button class="btn" id="zoomOut">➖ Zoom Out</button>
+            <label>Iterations <input id="iterRange" type="range" min="64" max="2048" step="32" value="512"/></label>
+          </div>
+          <div class="hint">Click or drag a box to zoom to a region. CPU stays chill thanks to the worker.</div>
+        </div>
+      </section>
+    </div>
+
+    <footer>
+      <div>Built with ❤️ for Daddy Labs + <abbr title="Three.js">three</abbr> + WebAudio + Workers. No external assets.</div>
+      <div>Shortcuts: <span class="kbd">F</span> fullscreen • <span class="kbd">P</span> pause • <span class="kbd">?</span> about</div>
+    </footer>
+  </div>
+
+  <!-- 3D + Postprocessing via module imports -->
+  <script type="module">
+    import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+    import { OrbitControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+    import { EffectComposer } from 'https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/UnrealBloomPass.js';
+
+    const $ = (sel) => document.querySelector(sel);
+    const stage = $('#stage');
+    const canvas = $('#three');
+    const statsEl = $('#stats');
+
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 200);
+    camera.position.set(0.6, 0.8, 2.1);
+
+    const controls = new OrbitControls(camera, canvas);
+    controls.enableDamping = true;
+
+    const hemi = new THREE.HemisphereLight(0xff77aa, 0x080820, 0.8);
+    const dir = new THREE.DirectionalLight(0xffffff, 0.6);
+    dir.position.set(2,2,1);
+    scene.add(hemi, dir);
+
+    const rt = new THREE.WebGLCubeRenderTarget(64, { generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const envScene = new THREE.Scene();
+    const envCamera = new THREE.CubeCamera(0.1, 10, rt);
+    const envGeo = new THREE.IcosahedronGeometry(1, 2);
+    const envMat = new THREE.MeshBasicMaterial({ color: 0x0a1220, wireframe: true, opacity: .7, transparent: true });
+    envScene.add(new THREE.Mesh(envGeo, envMat));
+    envCamera.update(renderer, envScene);
+    const envMap = pmrem.fromCubemap(rt.texture).texture;
+
+    const knotGeo = new THREE.TorusKnotGeometry(0.6, 0.18, 400, 32);
+    const knotMat = new THREE.MeshPhysicalMaterial({
+      color: 0xff006e,
+      roughness: 0.1,
+      metalness: 0.95,
+      clearcoat: 1,
+      clearcoatRoughness: 0.25,
+      envMap, envMapIntensity: 1.2,
+      sheen: 1,
+      sheenRoughness: 0.6,
+      sheenColor: new THREE.Color(0xffd60a)
+    });
+    const knot = new THREE.Mesh(knotGeo, knotMat);
+    scene.add(knot);
+
+    const starGeo = new THREE.BufferGeometry();
+    const STAR_COUNT = 3000;
+    const pos = new Float32Array(STAR_COUNT * 3);
+    for (let i=0;i<STAR_COUNT;i++){ const r=THREE.MathUtils.randFloat(5,32); const a=Math.random()*Math.PI*2; const b=Math.acos(THREE.MathUtils.randFloatSpread(2)); pos[i*3]=Math.cos(a)*Math.sin(b)*r; pos[i*3+1]=Math.sin(a)*Math.sin(b)*r; pos[i*3+2]=Math.cos(b)*r; }
+    starGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const starMat = new THREE.PointsMaterial({ size: 0.02, color: 0xffaacc, transparent:true, opacity:0.8 });
+    const stars = new THREE.Points(starGeo, starMat);
+    scene.add(stars);
+
+    const composer = new EffectComposer(renderer);
+    const renderPass = new RenderPass(scene, camera);
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(1,1), 1.1, 0.6, 0.0);
+    composer.addPass(renderPass);
+    composer.addPass(bloomPass);
+
+    function resize(){
+      const w = stage.clientWidth, h = stage.clientHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h; camera.updateProjectionMatrix();
+      composer.setSize(w, h);
+    }
+    new ResizeObserver(resize).observe(stage);
+
+    const speedRange = $('#speedRange');
+    const bloomRange = $('#bloomRange');
+    const starsToggle = $('#starsToggle');
+    const bloomToggle = $('#bloomToggle');
+    const perfBtn = $('#perfBtn');
+
+    let playing = true; let t = 0; let last = performance.now();
+    let perfMode = false;
+
+    function tick(now){
+      if (!playing) { requestAnimationFrame(tick); return; }
+      const dt = Math.min(0.033, (now - last)/1000); last = now; t += dt;
+
+      const speed = parseFloat(speedRange.value);
+      knot.rotation.x += 0.35 * dt * speed;
+      knot.rotation.y += 0.55 * dt * speed;
+      stars.rotation.y -= 0.05 * dt * speed;
+
+      camera.position.x = Math.cos(t*0.7)*0.2 + 0.6;
+      camera.position.y = Math.sin(t*0.9)*0.15 + 0.8;
+      controls.update();
+
+      bloomPass.strength = parseFloat(bloomRange.value) * (perfMode? 0.6 : 1);
+      stars.visible = starsToggle.checked;
+      bloomPass.enabled = bloomToggle.checked;
+
+      perfMode ? renderer.render(scene, camera) : composer.render();
+
+      statsEl.textContent = `fps: ${Math.round(1/dt)}  • objects: ${scene.children.length}`;
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+
+    document.addEventListener('keydown', (e)=>{
+      if (e.key.toLowerCase()==='p') playing = !playing;
+      if (e.key.toLowerCase()==='f') document.fullscreenElement ? document.exitFullscreen() : stage.requestFullscreen({ navigationUI: 'auto' }).catch(()=>{});
+      if (e.key==='?') about();
+    });
+
+    $('#aboutBtn').addEventListener('click', about);
+    function about(){
+      alert(`Daddy Labs\\n\\n• 3D neon playground with bloom, orbit controls, and a procedural starfield.\\n• Realtime audio visualizer (mic or file).\\n• Mandelbrot explorer rendered via Web Worker.\\n\\nShortcuts: F fullscreen • P pause • ? this dialog`);
+    }
+
+    $('#themeBtn').addEventListener('click', ()=>{
+      document.documentElement.classList.toggle('light');
+      const light = document.documentElement.classList.contains('light');
+      document.querySelector(':root').style.setProperty('--bg', light? '#f6f7fb' : '#0b0f19');
+      document.querySelector(':root').style.setProperty('--bg2', light? '#f0f2f9' : '#101626');
+      document.querySelector(':root').style.setProperty('--fg', light? '#0b1220' : '#e6edf3');
+      document.querySelector(':root').style.setProperty('--card', light? 'rgba(255,255,255,0.7)' : 'rgba(17,24,39,0.55)');
+      document.body.style.background = light
+        ? 'linear-gradient(180deg, #f6f7fb, #f0f2f9)'
+        : 'radial-gradient(1200px 800px at 80% -20%, rgba(255, 0, 110,.25), transparent 50%), radial-gradient(900px 600px at 10% 10%, rgba(255,214,10,.15), transparent 55%), linear-gradient(180deg, var(--bg), var(--bg2))';
+    });
+
+    perfBtn.addEventListener('click', ()=>{
+      perfMode = !perfMode;
+      perfBtn.setAttribute('aria-pressed', String(perfMode));
+    });
+  </script>
+
+  <!-- WebAudio Visualizer -->
+  <script>
+    (function(){
+      const canvas = document.getElementById('vizCanvas');
+      const ctx = canvas.getContext('2d');
+      const micBtn = document.getElementById('micBtn');
+      const stopBtn = document.getElementById('stopAudioBtn');
+      const fileInput = document.getElementById('fileInput');
+      const barsRange = document.getElementById('barsRange');
+
+      let ac, analyser, srcNode, rafId;
+
+      function resize(){ const dpr = Math.min(devicePixelRatio, 2); canvas.width = canvas.clientWidth * dpr; canvas.height = canvas.clientHeight * dpr; ctx.setTransform(dpr,0,0,dpr,0,0); }
+      new ResizeObserver(resize).observe(canvas);
+
+      function draw(){
+        if (!analyser) return;
+        const N = Math.max(16, Math.min(256, parseInt(barsRange.value)));
+        const arr = new Uint8Array(N);
+        analyser.fftSize = Math.pow(2, Math.ceil(Math.log2(N))*2);
+        analyser.getByteFrequencyData(arr);
+
+        ctx.clearRect(0,0,canvas.width, canvas.height);
+        const w = canvas.clientWidth; const h = canvas.clientHeight; const pad = 10; const barW = (w - pad*2) / N;
+        for (let i=0;i<N;i++) {
+          const v = arr[i] / 255;
+          const x = pad + i * barW;
+          const bh = (v*v) * (h - pad*2);
+          ctx.fillStyle = `hsl(${330 + i*0.4}, 85%, ${50 + v*30}%)`;
+          ctx.fillRect(x, h - pad - bh, barW*0.9, bh);
+        }
+        rafId = requestAnimationFrame(draw);
+      }
+
+      async function initContext(){ if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)(); return ac; }
+
+      async function useMic(){
+        const ac = await initContext();
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        teardown();
+        analyser = ac.createAnalyser();
+        srcNode = ac.createMediaStreamSource(stream);
+        srcNode.connect(analyser);
+        draw();
+        stopBtn.disabled = false;
+        micBtn.disabled = true;
+      }
+
+      function useBuffer(buf){
+        initContext().then(ac=>{
+          teardown();
+          const src = ac.createBufferSource();
+          src.buffer = buf; src.loop = true; src.start();
+          analyser = ac.createAnalyser(); src.connect(analyser); analyser.connect(ac.destination);
+          srcNode = src; draw(); stopBtn.disabled = false; micBtn.disabled = true;
+        });
+      }
+
+      function teardown(){
+        if (rafId) cancelAnimationFrame(rafId);
+        if (srcNode){ try{ srcNode.disconnect(); }catch{} }
+        analyser = null; srcNode = null; stopBtn.disabled = true; micBtn.disabled = false;
+      }
+
+      micBtn.addEventListener('click', ()=>useMic().catch(err=>alert('Mic error: '+err.message)));
+      stopBtn.addEventListener('click', teardown);
+      fileInput.addEventListener('change', async (e)=>{
+        const f = e.target.files[0]; if (!f) return;
+        const ac = await initContext();
+        const arr = await f.arrayBuffer();
+        const buf = await ac.decodeAudioData(arr);
+        useBuffer(buf);
+      });
+    })();
+  </script>
+
+  <!-- Mandelbrot Worker + controller -->
+  <script>
+    (function(){
+      const canvas = document.getElementById('fractalCanvas');
+      const ctx = canvas.getContext('2d');
+      const resetBtn = document.getElementById('resetFractal');
+      const zoomIn = document.getElementById('zoomIn');
+      const zoomOut = document.getElementById('zoomOut');
+      const iterRange = document.getElementById('iterRange');
+
+      let view = { x:-2.5, y:-1.5, w: 3.5, h: 3.0 };
+      let dragging = false, dragStart=null, dragRect=null;
+
+      function resize(){ const dpr = Math.min(devicePixelRatio, 2); canvas.width = canvas.clientWidth * dpr; canvas.height = canvas.clientHeight * dpr; ctx.setTransform(dpr,0,0,dpr,0,0); render(); }
+      new ResizeObserver(resize).observe(canvas);
+
+      const worker = new Worker(URL.createObjectURL(new Blob([`
+        self.onmessage = (e)=>{ const { type, payload } = e.data; if (type==='render'){ render(payload); } };
+        function render({ width, height, view, maxIter }){
+          const { x, y, w, h } = view;
+          const img = new ImageData(width, height);
+          let i = 0;
+          for (let py=0; py<height; py++){
+            const cy = y + (py/height) * h;
+            for (let px=0; px<width; px++){
+              const cx = x + (px/width) * w;
+              let zx=0, zy=0, iter=0;
+              while (zx*zx+zy*zy <= 4 && iter < maxIter){ const xt = zx*zx - zy*zy + cx; zy = 2*zx*zy + cy; zx = xt; iter++; }
+              const n = iter===maxIter ? 0 : iter - Math.log(Math.log(Math.sqrt(zx*zx+zy*zy)))/Math.log(2);
+              const t = n / maxIter;
+              const h1 = 300 + 120*t; const s=0.9; const v = t<1? 1 : 0;
+              const c = v*s; const m=v-c; const hp=h1/60; const x = c*(1-Math.abs(hp%2-1));
+              let r=0,g=0,b=0;
+              if (0<=hp&&hp<1){ r=c; g=x; } else if (1<=hp&&hp<2){ r=x; g=c; } else if (2<=hp&&hp<3){ g=c; b=x; } else if (3<=hp&&hp<4){ g=x; b=c; } else if (4<=hp&&hp<5){ r=x; b=c; } else { r=c; b=x; }
+              img.data[i++] = Math.round((r+m)*255);
+              img.data[i++] = Math.round((g+m)*255);
+              img.data[i++] = Math.round((b+m)*255);
+              img.data[i++] = 255;
+            }
+          }
+          postMessage({ type:'image', payload: img }, [img.data.buffer]);
+        }
+      `], { type: 'application/javascript' })));
+
+      worker.onmessage = (e)=>{
+        if (e.data.type==='image'){
+          const img = e.data.payload;
+          const bmp = new ImageData(new Uint8ClampedArray(img.data), img.width, img.height);
+          ctx.putImageData(bmp, 0, 0);
+          drawDrag();
+        }
+      };
+
+      function render(){
+        const width = canvas.width, height = canvas.height;
+        worker.postMessage({ type:'render', payload: { width, height, view, maxIter: parseInt(iterRange.value) } });
+      }
+
+      function screenToComplex(px, py){ return { cx: view.x + (px/canvas.clientWidth)*view.w, cy: view.y + (py/canvas.clientHeight)*view.h }; }
+
+      canvas.addEventListener('mousedown', (e)=>{ dragging = true; dragStart = { x:e.offsetX, y:e.offsetY }; dragRect = null; });
+      canvas.addEventListener('mousemove', (e)=>{ if (!dragging) return; dragRect = { x: Math.min(dragStart.x, e.offsetX), y: Math.min(dragStart.y, e.offsetY), w: Math.abs(e.offsetX-dragStart.x), h: Math.abs(e.offsetY-dragStart.y) }; drawDrag(); });
+      window.addEventListener('mouseup', ()=>{ if (!dragging) return; dragging = false; if (dragRect && dragRect.w>10 && dragRect.h>10){ const p1 = screenToComplex(dragRect.x, dragRect.y); const p2 = screenToComplex(dragRect.x+dragRect.w, dragRect.y+dragRect.h); view = { x: p1.cx, y: p1.cy, w: p2.cx - p1.cx, h: p2.cy - p1.cy }; render(); } dragRect=null; });
+
+      zoomIn.addEventListener('click', ()=>{ const zx=view.w*0.25, zy=view.h*0.25; view = { x: view.x+zx, y: view.y+zy, w: view.w*0.5, h: view.h*0.5 }; render(); });
+      zoomOut.addEventListener('click', ()=>{ const zx=view.w*0.5, zy=view.h*0.5; view = { x: view.x-zx*0.5, y: view.y-zy*0.5, w: view.w*2, h: view.h*2 }; render(); });
+      resetBtn.addEventListener('click', ()=>{ view = { x:-2.5, y:-1.5, w:3.5, h:3.0 }; render(); });
+      iterRange.addEventListener('input', render);
+
+      function drawDrag(){ if (!dragRect) return; ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 2; ctx.setLineDash([6,4]); ctx.strokeRect(dragRect.x, dragRect.y, dragRect.w, dragRect.h); ctx.restore(); }
+    })();
+  </script>
+</body>
+</html>
